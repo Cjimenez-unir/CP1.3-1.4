@@ -17,12 +17,14 @@ pipeline {
             steps {
                 // Ejecutar flake8
                 sh '''
-                   flake8 --exit-zero --format=pylint  . >flake8.out
+                    echo "=== Análisis de código con Flake8 ==="
+                    flake8 --exit-zero --format=pylint  . >flake8.out
                 '''
                 recordIssues tools: [flake8(name: 'Flake8', pattern: 'flake8.out')]
 
                 // Ejecutar bandit
                 sh '''
+                    echo "=== Análisis de código con Bandit ==="
                     bandit --exit-zero -r . -f custom -o bandit.out --severity-level medium --msg-template "{abspath}:{line}: [{test_id}] {msg}"
                 '''
                 recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')]
