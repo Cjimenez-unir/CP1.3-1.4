@@ -12,8 +12,8 @@ image_repositories = []
 [staging]
 [staging.deploy]
 [staging.deploy.parameters]
-stack_name = "resCP14-staging"
-s3_prefix = "resCP14"
+stack_name = "todo-list-aws-staging"
+s3_prefix = "todo-list-aws"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM"
 parameter_overrides = "Stage=\"staging\""
