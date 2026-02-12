@@ -82,18 +82,19 @@ pipeline {
                 """
             }
         }
+    }
 
-        post {
-            always {
-                cleanWs()
-            }
-            success {
-                echo 'Pipeline completado exitosamente'
-            }
-            failure {
-                echo 'Pipeline falló - revisar logs'
-            }
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo 'Pipeline completado exitosamente'
+        }
+        failure {
+            echo 'Pipeline falló - revisar logs'
         }
     }
+
 
 }
