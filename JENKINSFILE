@@ -1,0 +1,12 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'develop',
+                    url: 'https://github.com/Cjimenez-unir/CP1.3-1.4.git'
+            }
+        }
+    }
+}
