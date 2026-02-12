@@ -36,21 +36,49 @@ pipeline {
                 // Desplegar en SAM
                 sh '''
                     echo "=== Desplegando a Staging con SAM ==="
+
                     # Build de la aplicación SAM
-                    sam build
+                    sam validate --region us-east-1
+                    sam build --template template.yaml
 
                     # Deploy a Staging
                     sam deploy \
-                        --force-upload \
-                        --stack-name resCP14-staging \
+                        --stack-name todo-list-aws-staging \
                         --region us-east-1 \
-                        --no-confirm-changeset \
-                        --no-fail-on-empty-changeset \
                         --parameter-overrides Stage=staging \
+                        --no-confirm-changeset \
+                        --capabilities CAPABILITY_NAMED_IAM \
                         --no-disable-rollback \
-                        --capabilities CAPABILITY_IAM \
-                        --resolve-s3
-                '''
+                        --resolve-s3 \
+                        --no-fail-on-empty-changeset
+                    '''
+            }
+        }
+
+        stage('Rest Test') {
+            steps {
+                script {
+                    def BASE_URL = sh(
+                        script: "aws cloudformation describe-stacks --stack-name todo-list-aws-staging --query 'Stacks[0].Outputs[?OutputKey==`BaseUrlApi`].OutputValue' --region us-east-1 --output text",
+                        returnStdout: true
+                    ).trim()
+                    echo "BASE_URL: ${BASE_URL}"
+
+                    withEnv(["BASE_URL=${BASE_URL}"]) {
+                        // Ejecutar y publicar pruebas de integración con Pytest
+                        sh "pytest -s --junitxml=result-rest.xml test/integration/todoApiTest.py"
+                        junit 'result*.xml'
+                    }
+                }
+            }
+        }
+
+        stage('Promote') {
+            steps{
+                sh script: """
+                    git checkout master
+                    git merge develop
+                """
             }
         }
     }
