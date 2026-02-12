@@ -48,7 +48,6 @@ pipeline {
                         --no-fail-on-empty-changeset \
                         --parameter-overrides Stage=staging \
                         --no-disable-rollback \
-                        --config-env staging \
                         --capabilities CAPABILITY_IAM \
                         --resolve-s3
                 '''
