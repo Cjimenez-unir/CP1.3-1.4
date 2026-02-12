@@ -78,6 +78,7 @@ pipeline {
                 sh script: """
                     git checkout master
                     git merge develop
+                    git push origin master
                 """
             }
         }
