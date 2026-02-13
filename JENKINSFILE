@@ -76,8 +76,15 @@ pipeline {
         stage('Promote') {
             steps{
                 sh script: """
+                    git config user.name "Cjimenez-unir"
+                    
+                    # Cambiar la URL remota a SSH
+                    #git remote set-url origin git@github.com:Cjimenez-unir/CP1.3-1.4.git
+                    
+                    git fetch origin
                     git checkout master
-                    git merge develop
+                    git pull origin master
+                    git merge develop --no-ff -m "Merge develop into master"
                     git push origin master
                 """
             }
