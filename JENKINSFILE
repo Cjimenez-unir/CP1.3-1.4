@@ -19,7 +19,7 @@ pipeline {
             steps {
                 // Desplegar en SAM
                 sh '''
-                    echo "=== Desplegando a Staging con SAM ==="
+                    echo "=== Desplegando a Production con SAM ==="
 
                     # Build de la aplicación SAM
                     sam validate --region us-east-1
@@ -65,10 +65,15 @@ pipeline {
         }
     }
      
-    post { 
-        always { 
-            // Limpiar Workspace
+    post {
+        always {
             cleanWs()
+        }
+        success {
+            echo 'Pipeline completado exitosamente'
+        }
+        failure {
+            echo 'Pipeline falló - revisar logs'
         }
     }
 }
