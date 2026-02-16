@@ -1,0 +1,94 @@
+pipeline {
+    agent none
+    
+    environment {
+        PYTHONPATH = "$WORKSPACE"
+    }
+
+    stages {
+        stage('Get Code') {
+            agent any
+            steps {
+                // Obtener código del repositorio
+                git branch: 'master', 
+                url: 'https://github.com/Cjimenez-unir/CP1.3-1.4.git'
+                stash name: 'source-code', includes: '**'
+            }
+        }
+        
+        
+        stage('Deploy') {
+            agent {
+                label 'principal'
+            }
+            steps {
+                // Desplegar en SAM
+                sh '''
+                    echo "=== Desplegando a Production con SAM ==="
+
+                    # Build de la aplicación SAM
+                    sam validate --region us-east-1
+                    sam build --template template.yaml
+
+                    # Deploy a Staging
+                    sam deploy \
+                        --stack-name todo-list-aws-production \
+                        --region us-east-1 \
+                        --parameter-overrides Stage=production \
+                        --no-confirm-changeset \
+                        --capabilities CAPABILITY_IAM \
+                        --no-disable-rollback \
+                        --resolve-s3 \
+                        --no-fail-on-empty-changeset
+                    '''
+
+                   script {
+                       def BASE_URL = sh(
+                           script: "aws cloudformation describe-stacks --stack-name todo-list-aws-staging --query 'Stacks[0].Outputs[?OutputKey==`BaseUrlApi`].OutputValue' --region us-east-1 --output text",
+                           returnStdout: true
+                           ).trim()
+                       echo "BASE_URL: $BASE_URL"
+                       env.BASE_URL= BASE_URL
+                   }
+ 
+            }
+        }
+        
+        
+        stage('Rest Test') {
+            agent {
+                label 'agente1'
+            }
+            steps {
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    script {
+                        echo "=== Ejecutando pruebas de integración ==="
+                        echo "BASE_URL recibida: ${env.BASE_URL}"
+                        unstash 'source-code'
+        
+                        // Establecer la variable de entorno BASE_URL
+                        withEnv(["BASE_URL=${BASE_URL}"]) {
+                            // Ejecutar solo las pruebas de lectura
+                            sh "pytest -s --junitxml=result-rest.xml -k 'setUp or test_api_listtodos or test_api_gettodo' test/integration/todoApiTest.py"
+                            junit 'result*.xml'
+                        }
+                    }
+                }
+            }
+        }
+    }
+     
+    post {
+        always {
+            node('principal') {
+                cleanWs()
+            }
+        }
+        success {
+            echo 'Pipeline completado exitosamente'
+        }
+        failure {
+            echo 'Pipeline falló - revisar logs'
+        }
+    }
+}
