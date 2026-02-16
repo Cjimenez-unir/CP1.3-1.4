@@ -45,6 +45,7 @@ pipeline {
             steps {
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                     script {
+                        echo "=== Ejecutando pruebas de integración ==="
                         // Obtener el BASE_URL desde el resultado de AWS CLI
                         def BASE_URL = sh(
                             script: "aws cloudformation describe-stacks --stack-name todo-list-aws-production --query 'Stacks[0].Outputs[?OutputKey==`BaseUrlApi`].OutputValue' --region us-east-1 --output text",
