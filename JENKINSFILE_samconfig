@@ -1,0 +1,72 @@
+pipeline {
+    agent any
+    
+    environment {
+        PYTHONPATH = "$WORKSPACE"
+    }
+
+    stages {
+        stage('Get Code') {
+            steps {
+                // Obtener código del repositorio
+                git branch: 'master', 
+                url: 'https://github.com/Cjimenez-unir/CP1.3-1.4.git'
+                sh 'curl -o samconfig.toml https://raw.githubusercontent.com/Cjimenez-unir/todo-list-aws-config/production/samconfig.toml'
+            }
+        }
+        
+        
+        stage('Deploy') {
+            steps {
+                // Desplegar en SAM
+                sh '''
+                    echo "=== Desplegando a Production con SAM ==="
+
+                    # Build de la aplicación SAM
+                    sam validate --region us-east-1
+                    sam build --template template.yaml
+
+                    # Deploy a Staging
+                    sam deploy --config-file samconfig.toml --config-env staging --resolve-s3 --force-upload || true
+                    '''
+ 
+            }
+        }
+        
+        
+        stage('Rest Test') {
+            steps {
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    script {
+                        // Obtener el BASE_URL desde el resultado de AWS CLI
+                        def BASE_URL = sh(
+                            script: "aws cloudformation describe-stacks --stack-name todo-list-aws-production --query 'Stacks[0].Outputs[?OutputKey==`BaseUrlApi`].OutputValue' --region us-east-1 --output text",
+                            returnStdout: true
+                        ).trim() // Eliminar espacios en blanco alrededor del resultado
+        
+                        echo "BASE_URL: $BASE_URL"
+        
+                        // Establecer la variable de entorno BASE_URL
+                        withEnv(["BASE_URL=${BASE_URL}"]) {
+                            // Ejecutar solo las pruebas de lectura
+                            sh "pytest -s --junitxml=result-rest.xml -k 'setUp or test_api_listtodos or test_api_gettodo' test/integration/todoApiTest.py"
+                            junit 'result*.xml'
+                        }
+                    }
+                }
+            }
+        }
+    }
+     
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo 'Pipeline completado exitosamente'
+        }
+        failure {
+            echo 'Pipeline falló - revisar logs'
+        }
+    }
+}
