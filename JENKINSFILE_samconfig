@@ -1,0 +1,100 @@
+pipeline {
+    agent any
+
+    environment {
+        PYTHONPATH = "$WORKSPACE"
+    }
+
+    stages {
+        stage('Get Code') {
+            steps {
+                git branch: 'develop',
+                    url: 'https://github.com/Cjimenez-unir/CP1.3-1.4.git'
+                    sh 'curl -o samconfig.toml https://raw.githubusercontent.com/Cjimenez-unir/todo-list-aws-config/staging/samconfig.toml'
+            }
+        }
+
+        stage('Static Test') {
+            steps {
+                // Ejecutar flake8
+                sh '''
+                    echo "=== Análisis de código con Flake8 ==="
+                    flake8 src/ --exit-zero --format=pylint > flake8.out
+                '''
+                recordIssues tools: [flake8(name: 'Flake8', pattern: 'flake8.out')]
+
+                // Ejecutar bandit
+                sh '''
+                    echo "=== Análisis de código con Bandit ==="
+                    bandit -r src/ -f custom -o bandit.out -ll --msg-template "{abspath}:{line}: [{test_id}] {msg}" || exit 0
+                '''
+                recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')]
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                // Desplegar en SAM
+                sh '''
+                    echo "=== Desplegando a Staging con SAM ==="
+
+                    # Build de la aplicación SAM
+                    sam validate --region us-east-1
+                    sam build --template template.yaml
+
+                    # Deploy a Staging
+                    sam deploy --config-file samconfig.toml --config-env staging --resolve-s3 --force-upload || true
+                    '''
+            }
+        }
+
+        stage('Rest Test') {
+            steps {
+                script {
+                    def BASE_URL = sh(
+                        script: "aws cloudformation describe-stacks --stack-name todo-list-aws-staging --query 'Stacks[0].Outputs[?OutputKey==`BaseUrlApi`].OutputValue' --region us-east-1 --output text",
+                        returnStdout: true
+                    ).trim()
+                    echo "BASE_URL: ${BASE_URL}"
+
+                    withEnv(["BASE_URL=${BASE_URL}"]) {
+                        // Ejecutar y publicar pruebas de integración con Pytest
+                        sh "pytest -s --junitxml=result-rest.xml test/integration/todoApiTest.py"
+                        junit 'result*.xml'
+                    }
+                }
+            }
+        }
+
+        stage('Promote') {
+            steps{
+                    sh script: '''
+                        git config user.name "Cjimenez-unir"
+                        
+                        # Cambiar la URL remota a SSH
+                        #git remote set-url origin git@github.com:Cjimenez-unir/CP1.3-1.4.git
+                        
+                        git fetch origin
+                        git checkout master
+                        git pull origin master
+                        git merge develop --no-ff -m "Merge develop into master"
+                        git push origin master
+                    '''
+                }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo 'Pipeline completado exitosamente'
+        }
+        failure {
+            echo 'Pipeline falló - revisar logs'
+        }
+    }
+
+
+}
