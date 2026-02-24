@@ -86,7 +86,7 @@ pipeline {
                     
                         git fetch origin
                         git checkout master
-                        git pull origin master
+                        git pull origin mastergit config merge.ours.driver true
                         git merge develop --no-ff -m "Merge develop into master"
                         git push origin master
                     '''
