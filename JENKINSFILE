@@ -76,12 +76,14 @@ pipeline {
 
         stage('Promote') {
             steps{
+                withCredentials([string(credentialsId: 'github-credentials', variable: 'GIT_TOKEN')]) {
                     sh script: '''
                         git config user.name "Cjimenez-unir"
-                        
+                    
                         # Cambiar la URL remota a SSH
                         #git remote set-url origin git@github.com:Cjimenez-unir/CP1.3-1.4.git
-                        
+                        git remote set-url origin https://${GIT_TOKEN}@github.com/Cjimenez-unir/CP1.3-1.4.git
+                    
                         git fetch origin
                         git checkout master
                         git pull origin master
@@ -89,6 +91,7 @@ pipeline {
                         git push origin master
                     '''
                 }
+            }
         }
     }
 
