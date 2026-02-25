@@ -20,6 +20,7 @@ pipeline {
                 label 'principal'
             }
             steps {
+                unstash 'source-code'
                 // Ejecutar flake8
                 sh '''
                     echo "=== Análisis de código con Flake8 ==="
