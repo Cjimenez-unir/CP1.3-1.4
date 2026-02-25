@@ -68,19 +68,23 @@ pipeline {
 
         stage('Promote') {
             steps{
+                   withCredentials([string(credentialsId: 'github-credentials', variable: 'GIT_TOKEN')]) {
                     sh script: '''
-                        git config user.name "Cjimenez-unir"
-                        
+                        git config user.name "XXXXXX"
+                    
                         # Cambiar la URL remota a SSH
-                        #git remote set-url origin git@github.com:Cjimenez-unir/CP1.3-1.4.git
-                        
+                        #git remote set-url origin git@github.com:XXXX/CP1.3-1.4.git
+                        git remote set-url origin https://${GIT_TOKEN}@github.com/XXXX/CP1.3-1.4.git
+                    
                         git fetch origin
                         git checkout master
                         git pull origin master
+                        git config merge.ours.driver true
                         git merge develop --no-ff -m "Merge develop into master"
                         git push origin master
                     '''
                 }
+            }
         }
     }
 
